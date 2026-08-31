@@ -1,72 +1,6 @@
 (function(){
 const KEYS = {
-  execom:'hcs:execom', subpanels:'hcs:subpanels',
-  eventsPresent:'hcs:events:present', eventsUpcoming:'hcs:events:upcoming',
-  boardStudents:'hcs:board:students', boardDepartments:'hcs:board:departments',
-  marketplace:'hcs:marketplace', theme:'hcs:theme',
-  heritage:'hcs:heritage', session:'hcs:session'
-};
-const SHARED = true;
-
-/* ---------------- ADMIN AUTH ----------------
-   The password is never stored in plain text here — only a salted SHA-256
-   hash is embedded, and the same hash is recomputed from whatever the
-   visitor types in before comparing. This keeps the raw password out of
-   the page source, but note this is still a static, front-end-only site:
-   the hash itself is visible to anyone who reads this file, and a short
-   password can in principle be brute-forced offline from that hash. Treat
-   this as a light deterrent for casual visitors, not real backend security. */
-const AUTH_SALT = 'hcs-cet-2026-salt';
-const ADMIN_HASH = '328c52877213e92a980c882199db332e7ce99dd640b81312e8f602da92645f06';
-const SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8 hours
-
-async function sha256Hex(str){
-  const enc = new TextEncoder().encode(str);
-  const buf = await crypto.subtle.digest('SHA-256', enc);
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-async function verifyAdmin(username, password){
-  const combined = AUTH_SALT + ':' + (username||'').trim().toLowerCase() + ':' + (password||'');
-  const hash = await sha256Hex(combined);
-  return hash === ADMIN_HASH;
-}
-let isAdmin = false;
-
-/* ---------------- STORAGE ADAPTER ----------------
-   window.storage only exists inside Claude's own artifact preview. Once
-   this site is downloaded and opened as a normal webpage (or hosted on
-   your own domain), that API is not present. This adapter falls back to
-   the browser's localStorage so the site still works standalone — but
-   note localStorage is per-browser only. Inside Claude's preview, data
-   is shared across everyone viewing the artifact; once hosted on your
-   own domain without a real backend, each visitor's edits only save on
-   their own device/browser. A shared, multi-device "everyone sees the
-   same execom/leaderboard" experience after hosting would need a real
-   backend database — ask if you'd like help wiring one up. */
-const hasClaudeStorage = (typeof window!=='undefined' && !!window.storage
-  && typeof window.storage.get==='function' && typeof window.storage.set==='function');
-
-const store = {
-  async get(key, shared){
-    if(hasClaudeStorage){
-      try{ return await window.storage.get(key, shared); }
-      catch(e){ return null; }
-    }
-    try{
-      const v = localStorage.getItem(key);
-      return v!==null ? {key, value:v, shared} : null;
-    }catch(e){ return null; }
-  },
-  async set(key, value, shared){
-    if(hasClaudeStorage){
-      try{ return await window.storage.set(key, value, shared); }
-      catch(e){ console.error('Claude storage set failed', key, e); return null; }
-    }
-    try{
-      localStorage.setItem(key, value);
-      return {key, value, shared};
-    }catch(e){ console.error('localStorage set failed', key, e); return null; }
-  }
+  theme: 'hcs:theme'
 };
 
 const DEFAULTS = {
@@ -124,13 +58,13 @@ const DEFAULTS = {
     {id:'d5',name:'Civil',points:0}
   ],
   heritage: [
-    {id:'h1',year:'1939',title:'A College is Founded',desc:'Established under Maharajah Sree Chithira Thirunal Balarama Varma as the first engineering college in the princely state of Travancore, opening with 21 students each in Civil, Mechanical and Electrical Engineering.',photo:''},
-    {id:'h2',year:'1957',title:'University of Kerala',desc:'Having begun as a constituent college of the University of Travancore, CET came under the newly formed University of Kerala as academic administration in the state was reorganised.',photo:''},
-    {id:'h3',year:'1960',title:'A New Campus',desc:'The college moved to its present sprawling campus at Sreekaryam, the home it has grown into ever since.',photo:''},
-    {id:'h4',year:'1980s',title:'Postgraduate Growth',desc:'New postgraduate programmes, including the MCA department, broadened the college beyond its founding undergraduate branches.',photo:''},
-    {id:'h5',year:'2015',title:'KTU Affiliation',desc:'CET became affiliated to the newly established APJ Abdul Kalam Technological University, marking a new chapter in its academic governance.',photo:''},
-    {id:'h6',year:'2020s',title:'National Recognition',desc:'Recognised in national rankings across engineering and architecture, with growing research activity in computing and space technology.',photo:''},
-    {id:'h7',year:'2026',title:'Heritage & Collectibles Society Founded',desc:'HCS is chartered as a new student chapter, bringing coin, currency, stamp and antique collectors on campus together for the first time.',photo:''}
+    {id:'h1',year:'1939',title:'A College is Founded',desc:'Established under Maharajah Sree Chithira Thirunal Balarama Varma as the first engineering college in the princely state of Travancore, opening with 21 students each in Civil, Mechanical and Electrical Engineering.',photo:'images/timeline_1939_founding.jpg'},
+    {id:'h2',year:'1957',title:'University of Kerala',desc:'Having begun as a constituent college of the University of Travancore, CET came under the newly formed University of Kerala as academic administration in the state was reorganised.',photo:'images/timeline_1957_kerala_univ.jpg'},
+    {id:'h3',year:'1960',title:'A New Campus',desc:'The college moved to its present sprawling campus at Sreekaryam, the home it has grown into ever since.',photo:'images/timeline_1960_sreekaryam.jpg'},
+    {id:'h4',year:'1980s',title:'Postgraduate Growth',desc:'New postgraduate programmes, including the MCA department, broadened the college beyond its founding undergraduate branches.',photo:'images/timeline_1980s_postgraduate.jpg'},
+    {id:'h5',year:'2015',title:'KTU Affiliation',desc:'CET became affiliated to the newly established APJ Abdul Kalam Technological University, marking a new chapter in its academic governance.',photo:'images/timeline_2015_ktu.jpg'},
+    {id:'h6',year:'2020s',title:'National Recognition',desc:'Recognised in national rankings across engineering and architecture, with growing research activity in computing and space technology.',photo:'images/timeline_2020s_recognition.jpg'},
+    {id:'h7',year:'2026',title:'Heritage & Collectibles Society Founded',desc:'HCS is chartered as a new student chapter, bringing coin, currency, stamp and antique collectors on campus together for the first time.',photo:'images/timeline_2026_collectibles.jpg'}
   ],
   marketplace: [
     {id:'mk1',name:'Coins',icon:'🪙',desc:'Ancient, colonial and modern coins listed by student collectors.',link:''},
@@ -142,31 +76,8 @@ const DEFAULTS = {
   ]
 };
 
-let editing = false;
 let state = {};
 
-async function loadKey(key, fallback){
-  try{
-    const res = await store.get(key, SHARED);
-    if(res && res.value){ return JSON.parse(res.value); }
-  }catch(e){ /* not found yet */ }
-  return JSON.parse(JSON.stringify(fallback));
-}
-async function saveKey(key, value){
-  try{
-    await store.set(key, JSON.stringify(value), SHARED);
-    flashSaved();
-  }catch(e){ console.error('Save failed', key, e); }
-}
-let saveTimer=null;
-function flashSaved(){
-  const el = document.getElementById('saveIndicator');
-  if(!el) return;
-  el.classList.add('show');
-  clearTimeout(saveTimer);
-  saveTimer=setTimeout(()=>el.classList.remove('show'),1200);
-}
-function uid(prefix){return prefix+'_'+Math.random().toString(36).slice(2,9);}
 function initials(name){
   if(!name) return '?';
   return name.trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
@@ -186,8 +97,8 @@ async function initTheme(){
   const root=document.documentElement;
   let theme='light';
   try{
-    const res = await store.get(KEYS.theme, false);
-    if(res && res.value) theme = res.value;
+    const v = localStorage.getItem(KEYS.theme);
+    if(v) theme = v;
     else if(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) theme='dark';
   }catch(e){
     if(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) theme='dark';
@@ -206,7 +117,7 @@ function toggleTheme(){
   root.setAttribute('data-theme', next);
   updateThemeIcon(next);
   applyLogoTheme(next);
-  store.set(KEYS.theme, next, false).catch(()=>{});
+  try{ localStorage.setItem(KEYS.theme, next); }catch(e){}
 }
 
 /* ---------------- NAV ---------------- */
@@ -226,114 +137,6 @@ function initNav(){
   if(themeBtn) themeBtn.addEventListener('click', toggleTheme);
 }
 
-/* ---------------- AUTH / SIGN-IN ---------------- */
-function setEditingUI(){
-  document.body.classList.toggle('editing', editing);
-  const editBtn=document.getElementById('editToggle');
-  if(editBtn){
-    editBtn.textContent = editing?'Edit Mode: On':'Edit Mode: Off';
-    editBtn.classList.toggle('on', editing);
-  }
-}
-function setAdminUI(admin){
-  isAdmin = admin;
-  const signInBtn=document.getElementById('signInBtn');
-  const authPanel=document.getElementById('authPanel');
-  const editBtn=document.getElementById('editToggle');
-  const signOutBtn=document.getElementById('signOutBtn');
-  const badge=document.getElementById('adminBadge');
-  if(signInBtn) signInBtn.hidden = admin;
-  if(authPanel) authPanel.hidden = true;
-  if(editBtn) editBtn.hidden = !admin;
-  if(signOutBtn) signOutBtn.hidden = !admin;
-  if(badge) badge.hidden = !admin;
-  if(!admin){ editing = false; }
-  setEditingUI();
-  renderCurrentPage();
-}
-async function restoreSession(){
-  try{
-    const res = await store.get(KEYS.session, false);
-    if(res && res.value){
-      const sess = JSON.parse(res.value);
-      if(sess && sess.role==='admin' && (Date.now()-sess.ts) < SESSION_TTL_MS){
-        setAdminUI(true);
-        return;
-      }
-    }
-  }catch(e){ /* no session yet */ }
-  setAdminUI(false);
-}
-function initAuth(){
-  const signInBtn=document.getElementById('signInBtn');
-  const authPanel=document.getElementById('authPanel');
-  const tabs=document.querySelectorAll('.auth-tab');
-  const continueBtn=document.getElementById('continueStudentBtn');
-  const loginBtn=document.getElementById('adminLoginBtn');
-  const signOutBtn=document.getElementById('signOutBtn');
-  const editBtn=document.getElementById('editToggle');
-  const errorEl=document.getElementById('authError');
-  const userInp=document.getElementById('adminUser');
-  const passInp=document.getElementById('adminPass');
-
-  if(signInBtn && authPanel){
-    signInBtn.addEventListener('click',()=>{ authPanel.hidden = !authPanel.hidden; });
-    document.addEventListener('click',(e)=>{
-      if(!authPanel.hidden && !authPanel.contains(e.target) && e.target!==signInBtn){
-        authPanel.hidden = true;
-      }
-    });
-  }
-  tabs.forEach(tab=>{
-    tab.addEventListener('click',()=>{
-      tabs.forEach(t=>t.classList.remove('active'));
-      tab.classList.add('active');
-      document.querySelectorAll('.auth-tab-panel').forEach(p=>p.classList.remove('active'));
-      document.getElementById('auth'+(tab.dataset.role==='admin'?'Admin':'Student')).classList.add('active');
-      if(errorEl) errorEl.hidden = true;
-    });
-  });
-  if(continueBtn) continueBtn.addEventListener('click',()=>{ authPanel.hidden = true; });
-  if(loginBtn){
-    loginBtn.addEventListener('click', async ()=>{
-      loginBtn.disabled = true;
-      try{
-        const ok = await verifyAdmin(userInp.value, passInp.value);
-        if(ok){
-          passInp.value='';
-          if(errorEl) errorEl.hidden = true;
-          setAdminUI(true); // grant access immediately, don't block on persistence
-          store.set(KEYS.session, JSON.stringify({role:'admin', ts:Date.now()}), false)
-            .catch(e=>console.error('Session save failed', e));
-        }else{
-          if(errorEl){ errorEl.textContent='Incorrect username or password.'; errorEl.hidden = false; }
-        }
-      }catch(e){
-        console.error('Login error', e);
-        if(errorEl){ errorEl.textContent='Sign-in failed unexpectedly. Check the browser console for details.'; errorEl.hidden = false; }
-      }finally{
-        loginBtn.disabled = false;
-      }
-    });
-    passInp.addEventListener('keydown', e=>{ if(e.key==='Enter') loginBtn.click(); });
-  }
-  if(signOutBtn){
-    signOutBtn.addEventListener('click', async ()=>{
-      setAdminUI(false);
-      store.set(KEYS.session, JSON.stringify({role:'none', ts:0}), false)
-        .catch(e=>console.error('Session clear failed', e));
-    });
-  }
-  if(editBtn){
-    editBtn.addEventListener('click',()=>{
-      if(!isAdmin) return;
-      editing=!editing;
-      setEditingUI();
-      renderCurrentPage();
-    });
-  }
-}
-
 /* ---------------- EXECOM ---------------- */
 function renderExecom(){
   const wrap = document.getElementById('execomGrid');
@@ -343,38 +146,15 @@ function renderExecom(){
     const card=document.createElement('div');
     card.className='specimen';
     card.innerHTML=`
-      <button class="card-remove" title="Remove">✕</button>
       <div class="catalog-no">Member No. ${String(i+1).padStart(3,'0')}</div>
-      <div class="photo-frame">${m.photo?`<img src="${escapeHtml(m.photo)}" alt="">`:initials(m.name)}</div>
-      <input class="name-field" data-f="name" value="${escapeHtml(m.name)}" ${editing?'':'readonly'}>
-      <div class="leader-row"><span class="lab">Position</span><input class="editable-field" data-f="position" value="${escapeHtml(m.position)}" ${editing?'':'readonly'}></div>
-      <div class="leader-row"><span class="lab">Dept</span><input class="editable-field" data-f="dept" value="${escapeHtml(m.dept)}" ${editing?'':'readonly'}></div>
-      <div class="leader-row"><span class="lab">Year</span><input class="editable-field" data-f="year" value="${escapeHtml(m.year)}" ${editing?'':'readonly'}></div>
-      <div class="leader-row"><span class="lab">Photo URL</span><input class="editable-field" data-f="photo" placeholder="paste image link" value="${escapeHtml(m.photo)}" ${editing?'':'readonly'}></div>
+      <div class="photo-frame">${m.photo?`<img src="${escapeHtml(m.photo)}" alt="${escapeHtml(m.name)}">`:initials(m.name)}</div>
+      <div class="member-name">${escapeHtml(m.name)}</div>
+      <div class="leader-row"><span class="lab">Position</span><span class="val">${escapeHtml(m.position)}</span></div>
+      <div class="leader-row"><span class="lab">Dept</span><span class="val">${escapeHtml(m.dept)}</span></div>
+      <div class="leader-row"><span class="lab">Year</span><span class="val">${escapeHtml(m.year)}</span></div>
     `;
-    card.querySelectorAll('input').forEach(inp=>{
-      inp.addEventListener('change',()=>{
-        m[inp.dataset.f]=inp.value;
-        saveKey(KEYS.execom, state.execom);
-        renderExecom();
-      });
-    });
-    card.querySelector('.card-remove').addEventListener('click',()=>{
-      state.execom.splice(i,1);
-      saveKey(KEYS.execom, state.execom);
-      renderExecom();
-    });
     wrap.appendChild(card);
   });
-  const addCard=document.createElement('button');
-  addCard.className='add-card';
-  addCard.textContent='+ Add Execom Member';
-  addCard.addEventListener('click',()=>{
-    state.execom.push({id:uid('c'),name:'New Member',position:'Position',dept:'Dept',year:'Year',photo:''});
-    saveKey(KEYS.execom, state.execom);
-    renderExecom();
-  });
-  wrap.appendChild(addCard);
 }
 
 /* ---------------- SUBPANELS ---------------- */
@@ -382,56 +162,27 @@ function renderPanels(){
   const wrap=document.getElementById('panelsWrap');
   if(!wrap) return;
   wrap.innerHTML='';
-  state.subpanels.forEach((panel,pi)=>{
+  state.subpanels.forEach(panel=>{
     const block=document.createElement('div');
     block.className='panel-block';
     block.innerHTML=`
       <div class="panel-head">
-        <input class="panel-title-field" value="${escapeHtml(panel.name)}" ${editing?'':'readonly'} data-panel-name>
-        <button class="card-remove" style="position:static;${editing?'display:block':'display:none'}" data-remove-panel>✕ Remove Panel</button>
+        <h3 class="panel-title">${escapeHtml(panel.name)}</h3>
       </div>
       <div class="panel-members"></div>
-      <button class="add-row-btn" data-add-member>+ Add Member</button>
     `;
-    const nameInput=block.querySelector('[data-panel-name]');
-    nameInput.addEventListener('change',()=>{
-      panel.name=nameInput.value;
-      saveKey(KEYS.subpanels,state.subpanels);
-    });
-    block.querySelector('[data-remove-panel]').addEventListener('click',()=>{
-      state.subpanels.splice(pi,1);
-      saveKey(KEYS.subpanels,state.subpanels);
-      renderPanels();
-    });
     const membersWrap=block.querySelector('.panel-members');
-    panel.members.forEach((mem,mi)=>{
+    panel.members.forEach(mem=>{
       const row=document.createElement('div');
       row.className='pm-row';
       row.innerHTML=`
         <div class="photo-frame">${initials(mem.name)}</div>
         <div class="pm-info">
-          <input class="pm-name" value="${escapeHtml(mem.name)}" data-f="name" ${editing?'':'readonly'}>
-          <input class="pm-role" value="${escapeHtml(mem.role)}" data-f="role" ${editing?'':'readonly'}>
+          <div class="pm-name">${escapeHtml(mem.name)}</div>
+          <div class="pm-role">${escapeHtml(mem.role)}</div>
         </div>
-        <button class="pm-remove">✕</button>
       `;
-      row.querySelectorAll('input').forEach(inp=>{
-        inp.addEventListener('change',()=>{
-          mem[inp.dataset.f]=inp.value;
-          saveKey(KEYS.subpanels,state.subpanels);
-        });
-      });
-      row.querySelector('.pm-remove').addEventListener('click',()=>{
-        panel.members.splice(mi,1);
-        saveKey(KEYS.subpanels,state.subpanels);
-        renderPanels();
-      });
       membersWrap.appendChild(row);
-    });
-    block.querySelector('[data-add-member]').addEventListener('click',()=>{
-      panel.members.push({id:uid('m'),name:'New Member',role:'Role'});
-      saveKey(KEYS.subpanels,state.subpanels);
-      renderPanels();
     });
     wrap.appendChild(block);
   });
@@ -442,29 +193,17 @@ function renderEvents(listKey, wrapId){
   const wrap=document.getElementById(wrapId);
   if(!wrap) return;
   wrap.innerHTML='';
-  state[listKey].forEach((ev,i)=>{
+  state[listKey].forEach(ev=>{
     const card=document.createElement('div');
     card.className='event-card';
     card.innerHTML=`
-      <div class="event-date"><input value="${escapeHtml(ev.date)}" data-f="date" ${editing?'':'readonly'} style="text-align:center;font-family:var(--mono);color:var(--oxblood);"></div>
+      <div class="event-date">${escapeHtml(ev.date)}</div>
       <div class="event-body">
-        <input class="event-tag" style="width:auto;display:inline-block;" value="${escapeHtml(ev.tag)}" data-f="tag" ${editing?'':'readonly'}>
-        <input class="event-title" style="font-family:var(--serif-display);font-size:1.1rem;" value="${escapeHtml(ev.title)}" data-f="title" ${editing?'':'readonly'}>
-        <textarea class="event-desc" data-f="desc" ${editing?'':'readonly'}>${escapeHtml(ev.desc)}</textarea>
+        <span class="event-tag">${escapeHtml(ev.tag)}</span>
+        <h3 class="event-title">${escapeHtml(ev.title)}</h3>
+        <p class="event-desc">${escapeHtml(ev.desc)}</p>
       </div>
-      <button class="card-remove" style="position:static;${editing?'':'display:none'}">✕</button>
     `;
-    card.querySelectorAll('input,textarea').forEach(inp=>{
-      inp.addEventListener('change',()=>{
-        ev[inp.dataset.f]=inp.value;
-        saveKey(KEYS[listKey], state[listKey]);
-      });
-    });
-    card.querySelector('.card-remove').addEventListener('click',()=>{
-      state[listKey].splice(i,1);
-      saveKey(KEYS[listKey], state[listKey]);
-      renderEvents(listKey,wrapId);
-    });
     wrap.appendChild(card);
   });
 }
@@ -476,58 +215,29 @@ function renderStudentBoard(){
   const sorted=[...state.boardStudents].sort((a,b)=>b.points-a.points);
   tbody.innerHTML='';
   sorted.forEach((row,i)=>{
-    const realIndex=state.boardStudents.indexOf(row);
     const tr=document.createElement('tr');
     tr.innerHTML=`
       <td class="rank" data-label="Rank">${i+1}</td>
-      <td data-label="Student"><input value="${escapeHtml(row.name)}" data-f="name" ${editing?'':'readonly'}></td>
-      <td data-label="Department"><input value="${escapeHtml(row.dept)}" data-f="dept" ${editing?'':'readonly'}></td>
-      <td class="points" data-label="Points"><input class="points-input" type="number" value="${row.points}" data-f="points" ${editing?'':'readonly'}></td>
-      <td data-label=""><button class="row-remove">✕</button></td>
+      <td data-label="Student">${escapeHtml(row.name)}</td>
+      <td data-label="Department">${escapeHtml(row.dept)}</td>
+      <td class="points" data-label="Points">${row.points}</td>
     `;
-    tr.querySelectorAll('input').forEach(inp=>{
-      inp.addEventListener('change',()=>{
-        const val = inp.dataset.f==='points'? (parseInt(inp.value)||0) : inp.value;
-        state.boardStudents[realIndex][inp.dataset.f]=val;
-        saveKey(KEYS.boardStudents,state.boardStudents);
-        renderStudentBoard();
-      });
-    });
-    tr.querySelector('.row-remove').addEventListener('click',()=>{
-      state.boardStudents.splice(realIndex,1);
-      saveKey(KEYS.boardStudents,state.boardStudents);
-      renderStudentBoard();
-    });
     tbody.appendChild(tr);
   });
 }
+
 function renderDeptBoard(){
   const tbody=document.querySelector('#deptBoard tbody');
   if(!tbody) return;
   const sorted=[...state.boardDepartments].sort((a,b)=>b.points-a.points);
   tbody.innerHTML='';
   sorted.forEach((row,i)=>{
-    const realIndex=state.boardDepartments.indexOf(row);
     const tr=document.createElement('tr');
     tr.innerHTML=`
       <td class="rank" data-label="Rank">${i+1}</td>
-      <td data-label="Department"><input value="${escapeHtml(row.name)}" data-f="name" ${editing?'':'readonly'}></td>
-      <td class="points" data-label="Points"><input class="points-input" type="number" value="${row.points}" data-f="points" ${editing?'':'readonly'}></td>
-      <td data-label=""><button class="row-remove">✕</button></td>
+      <td data-label="Department">${escapeHtml(row.name)}</td>
+      <td class="points" data-label="Points">${row.points}</td>
     `;
-    tr.querySelectorAll('input').forEach(inp=>{
-      inp.addEventListener('change',()=>{
-        const val = inp.dataset.f==='points'? (parseInt(inp.value)||0) : inp.value;
-        state.boardDepartments[realIndex][inp.dataset.f]=val;
-        saveKey(KEYS.boardDepartments,state.boardDepartments);
-        renderDeptBoard();
-      });
-    });
-    tr.querySelector('.row-remove').addEventListener('click',()=>{
-      state.boardDepartments.splice(realIndex,1);
-      saveKey(KEYS.boardDepartments,state.boardDepartments);
-      renderDeptBoard();
-    });
     tbody.appendChild(tr);
   });
 }
@@ -537,51 +247,69 @@ function renderMarketplace(){
   const wrap=document.getElementById('marketGrid');
   if(!wrap) return;
   wrap.innerHTML='';
-  state.marketplace.forEach((tile,i)=>{
-    const el=document.createElement(editing?'div':'a');
+  state.marketplace.forEach(tile=>{
+    const el=document.createElement(tile.link?'a':'div');
     el.className='market-tile';
-    if(!editing){
-      el.href = tile.link || '#';
-      if(tile.link) el.target='_blank';
+    if(tile.link){
+      el.href = tile.link;
+      el.target='_blank';
+      el.rel='noopener noreferrer';
     }
     el.innerHTML=`
-      <button class="card-remove" style="${editing?'display:block':'display:none'}">✕</button>
-      <div class="market-badge">${tile.link?'Linked':'No Link'}</div>
+      <div class="market-badge">${tile.link?'Linked':'Coming Soon'}</div>
       <div class="market-icon">${tile.icon}</div>
-      <input class="name-field" style="font-family:var(--serif-display);font-size:1.1rem;" data-f="name" value="${escapeHtml(tile.name)}" ${editing?'':'readonly'}>
-      <textarea class="market-desc" data-f="desc" ${editing?'':'readonly'} style="border:none;background:transparent;font:inherit;resize:vertical;color:inherit;">${escapeHtml(tile.desc)}</textarea>
-      ${editing?`<input class="market-link-input" placeholder="https://... paste listing/form link" data-f="link" value="${escapeHtml(tile.link)}">`
-                :`<div class="market-link-row">${tile.link?escapeHtml(tile.link):'Link coming soon'}</div>`}
+      <h3 class="market-name">${escapeHtml(tile.name)}</h3>
+      <p class="market-desc">${escapeHtml(tile.desc)}</p>
+      ${tile.link ? `<div class="market-link-row">${escapeHtml(tile.link)}</div>` : ''}
     `;
-    el.querySelectorAll('input,textarea').forEach(inp=>{
-      inp.addEventListener('click',e=>{ if(editing) e.preventDefault(); });
-      inp.addEventListener('change',()=>{
-        tile[inp.dataset.f]=inp.value;
-        saveKey(KEYS.marketplace,state.marketplace);
-        renderMarketplace();
-      });
-    });
-    const rm=el.querySelector('.card-remove');
-    if(rm) rm.addEventListener('click',(e)=>{
-      e.preventDefault();
-      state.marketplace.splice(i,1);
-      saveKey(KEYS.marketplace,state.marketplace);
-      renderMarketplace();
-    });
     wrap.appendChild(el);
   });
-  if(editing){
-    const addCard=document.createElement('button');
-    addCard.className='add-card';
-    addCard.style.display='flex';
-    addCard.textContent='+ Add Category';
-    addCard.addEventListener('click',()=>{
-      state.marketplace.push({id:uid('mk'),name:'New Category',icon:'📦',desc:'Description here.',link:''});
-      saveKey(KEYS.marketplace,state.marketplace);
-      renderMarketplace();
+}
+
+/* ---------------- HERITAGE TIMELINE ---------------- */
+function initTimelineScrollObserver(){
+  const items = document.querySelectorAll('.timeline-item');
+  if(!items.length) return;
+
+  if('IntersectionObserver' in window){
+    const observer = new IntersectionObserver((entries, obs)=>{
+      entries.forEach(entry=>{
+        if(entry.isIntersecting){
+          entry.target.classList.add('in-view');
+          obs.unobserve(entry.target);
+        }
+      });
+    }, {
+      threshold: 0.12,
+      rootMargin: '0px 0px -40px 0px'
     });
-    wrap.appendChild(addCard);
+
+    items.forEach(el => observer.observe(el));
+  } else {
+    items.forEach(el => el.classList.add('in-view'));
   }
+}
+
+function renderHeritage(){
+  const wrap=document.getElementById('timelineWrap');
+  if(!wrap) return;
+  wrap.innerHTML='';
+  state.heritage.forEach(item=>{
+    const el=document.createElement('div');
+    el.className='timeline-item';
+    el.innerHTML=`
+      <div>
+        <div class="timeline-year">${escapeHtml(item.year)}</div>
+        ${item.photo?`<div class="timeline-photo"><img src="${escapeHtml(item.photo)}" alt="${escapeHtml(item.title)}" loading="lazy"></div>`:''}
+      </div>
+      <div>
+        <h3 class="timeline-title">${escapeHtml(item.title)}</h3>
+        <p class="timeline-desc">${escapeHtml(item.desc)}</p>
+      </div>
+    `;
+    wrap.appendChild(el);
+  });
+  initTimelineScrollObserver();
 }
 
 function renderCurrentPage(){
@@ -595,98 +323,7 @@ function renderCurrentPage(){
   renderHeritage();
 }
 
-/* ---------------- HERITAGE TIMELINE ---------------- */
-function renderHeritage(){
-  const wrap=document.getElementById('timelineWrap');
-  if(!wrap) return;
-  wrap.innerHTML='';
-  state.heritage.forEach((item,i)=>{
-    const el=document.createElement('div');
-    el.className='timeline-item';
-    el.innerHTML=`
-      <div>
-        <input class="timeline-year" data-f="year" value="${escapeHtml(item.year)}" ${editing?'':'readonly'}>
-        <div class="timeline-photo">${item.photo?`<img src="${escapeHtml(item.photo)}" alt="">`:'No Photo Yet'}</div>
-        ${editing?`<input class="timeline-photo-input" placeholder="paste image link" data-f="photo" value="${escapeHtml(item.photo)}">`:''}
-        <div class="timeline-controls">
-          <button class="tl-btn" data-act="up" title="Move earlier">↑</button>
-          <button class="tl-btn" data-act="down" title="Move later">↓</button>
-          <button class="tl-btn tl-remove" data-act="remove" title="Remove">✕</button>
-        </div>
-      </div>
-      <div>
-        <input class="timeline-title" data-f="title" value="${escapeHtml(item.title)}" ${editing?'':'readonly'}>
-        <textarea class="timeline-desc" data-f="desc" ${editing?'':'readonly'}>${escapeHtml(item.desc)}</textarea>
-      </div>
-    `;
-    el.querySelectorAll('input,textarea').forEach(inp=>{
-      inp.addEventListener('change',()=>{
-        item[inp.dataset.f]=inp.value;
-        saveKey(KEYS.heritage,state.heritage);
-        renderHeritage();
-      });
-    });
-    const upBtn=el.querySelector('[data-act="up"]');
-    const downBtn=el.querySelector('[data-act="down"]');
-    const rmBtn=el.querySelector('[data-act="remove"]');
-    if(upBtn) upBtn.addEventListener('click',()=>{
-      if(i>0){
-        [state.heritage[i-1],state.heritage[i]]=[state.heritage[i],state.heritage[i-1]];
-        saveKey(KEYS.heritage,state.heritage);
-        renderHeritage();
-      }
-    });
-    if(downBtn) downBtn.addEventListener('click',()=>{
-      if(i<state.heritage.length-1){
-        [state.heritage[i+1],state.heritage[i]]=[state.heritage[i],state.heritage[i+1]];
-        saveKey(KEYS.heritage,state.heritage);
-        renderHeritage();
-      }
-    });
-    if(rmBtn) rmBtn.addEventListener('click',()=>{
-      state.heritage.splice(i,1);
-      saveKey(KEYS.heritage,state.heritage);
-      renderHeritage();
-    });
-    wrap.appendChild(el);
-  });
-}
-
 function wireStaticControls(){
-  const addTimelineBtn=document.getElementById('addTimelineBtn');
-  if(addTimelineBtn) addTimelineBtn.addEventListener('click',()=>{
-    state.heritage.push({id:uid('h'),year:'Year',title:'New Milestone',desc:'Describe this achievement or moment.',photo:''});
-    saveKey(KEYS.heritage,state.heritage);
-    renderHeritage();
-  });
-  const addPanelBtn=document.getElementById('addPanelBtn');
-  if(addPanelBtn) addPanelBtn.addEventListener('click',()=>{
-    state.subpanels.push({id:uid('p'),name:'New Sub-Panel',members:[]});
-    saveKey(KEYS.subpanels,state.subpanels);
-    renderPanels();
-  });
-  document.querySelectorAll('.add-event-btn').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-      const which=btn.dataset.list;
-      const listKey = which==='present'?'eventsPresent':'eventsUpcoming';
-      state[listKey].push({id:uid('e'),title:'New Event',date:'TBD',tag:'Event',desc:'Description here.'});
-      saveKey(KEYS[listKey],state[listKey]);
-      renderEvents(listKey, which==='present'?'eventsPresentWrap':'eventsUpcomingWrap');
-    });
-  });
-  document.querySelectorAll('.add-row-plain').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-      if(btn.dataset.board==='students'){
-        state.boardStudents.push({id:uid('s'),name:'New Student',dept:'Dept',points:0});
-        saveKey(KEYS.boardStudents,state.boardStudents);
-        renderStudentBoard();
-      }else{
-        state.boardDepartments.push({id:uid('d'),name:'New Department',points:0});
-        saveKey(KEYS.boardDepartments,state.boardDepartments);
-        renderDeptBoard();
-      }
-    });
-  });
   document.querySelectorAll('.tab-strip').forEach(strip=>{
     strip.addEventListener('click',(e)=>{
       const btn=e.target.closest('.tab-btn');
@@ -704,17 +341,8 @@ function wireStaticControls(){
 async function init(){
   await initTheme();
   initNav();
-  initAuth();
   wireStaticControls();
-  state.execom = await loadKey(KEYS.execom, DEFAULTS.execom);
-  state.subpanels = await loadKey(KEYS.subpanels, DEFAULTS.subpanels);
-  state.eventsPresent = await loadKey(KEYS.eventsPresent, DEFAULTS.eventsPresent);
-  state.eventsUpcoming = await loadKey(KEYS.eventsUpcoming, DEFAULTS.eventsUpcoming);
-  state.boardStudents = await loadKey(KEYS.boardStudents, DEFAULTS.boardStudents);
-  state.boardDepartments = await loadKey(KEYS.boardDepartments, DEFAULTS.boardDepartments);
-  state.marketplace = await loadKey(KEYS.marketplace, DEFAULTS.marketplace);
-  state.heritage = await loadKey(KEYS.heritage, DEFAULTS.heritage);
-  await restoreSession();
+  state = JSON.parse(JSON.stringify(DEFAULTS));
   renderCurrentPage();
 }
 document.addEventListener('DOMContentLoaded', init);
